@@ -100,19 +100,20 @@ const ChatRoom = ({ user }) => {
     // Auto scroll to bottom only when new messages are added AND user is at bottom
     useEffect(() => {
         if (messages.length > prevMessagesLengthRef.current) {
-            if (isAtBottom) {
+            const lastMsg = messages[messages.length - 1];
+            const sentByMe = lastMsg?.author === user.name;
+
+            // Always scroll if I sent the message, OR if I'm already at the bottom
+            if (sentByMe || isAtBottom) {
                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                // Reset isAtBottom if I sent it
+                if (sentByMe) setIsAtBottom(true);
             }
             prevMessagesLengthRef.current = messages.length;
         }
-    }, [messages, isAtBottom]);
+    }, [messages, isAtBottom, user.name]);
 
-    // Handle typing status separately (don't scroll unless at bottom)
-    useEffect(() => {
-        if (isAtBottom && typingUsers.length > 0) {
-            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
-    }, [typingUsers, isAtBottom]);
+    // Removed the typing induced scroll to prevent jumping while others type
 
     // Handle typing indicator
     const handleInputChange = (e) => {
@@ -258,18 +259,18 @@ const ChatRoom = ({ user }) => {
         // Check if it's a Watch Together link
         if (msg.body.startsWith('[WATCH]')) {
             const videoUrl = msg.body.substring(7);
-            const watchUrl = `https://www.watch2gether.com/go#${encodeURIComponent(videoUrl)}`;
+            // Open YouTube directly for reliability, as Jitsi/Watch2Gether can sometimes 404 or be blocked
             return (
                 <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'} watch-message`}>
                     <span className="message-author">{msg.author}</span>
                     <div className="watch-card">
                         <span style={{ fontSize: '1.2rem' }}>🍿 Together Watch</span>
-                        <p style={{ fontSize: '0.8rem', opacity: 0.8 }}>Join to watch movie together</p>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.8 }}>Watch video with friends</p>
                         <button
-                            onClick={() => window.open(watchUrl, '_blank')}
+                            onClick={() => window.open(videoUrl, '_blank')}
                             className="join-watch-btn"
                         >
-                            Join & Watch
+                            Open Video
                         </button>
                     </div>
                 </div>
