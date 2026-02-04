@@ -1,0 +1,12 @@
+{
+    "name": "mfa-login-workspace",
+    "version": "1.0.0",
+    "description": "Root workspace for MFA Login project",
+    "scripts": {
+        "dev": "npm run dev --prefix frontend_chat",
+        "build": "npm run build --prefix frontend_chat",
+        "install-frontend": "npm install --prefix frontend_chat"
+    },
+    "author": "",
+    "license": "ISC"
+}
