@@ -8,10 +8,14 @@ const ChatRoom = ({ user }) => {
     const [error, setError] = useState('');
     const [typingUsers, setTypingUsers] = useState([]);
     const [isRecording, setIsRecording] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isAtBottom, setIsAtBottom] = useState(true);
     const messagesEndRef = useRef(null);
+    const messagesAreaRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
+    const lastMessageIdRef = useRef(null);
 
     // Initialize Chat
     useEffect(() => {
@@ -26,6 +30,23 @@ const ChatRoom = ({ user }) => {
         initChat();
     }, []);
 
+    // Check if user is at bottom of messages
+    const checkIfAtBottom = () => {
+        if (!messagesAreaRef.current) return true;
+        const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current;
+        const threshold = 100; // pixels from bottom
+        return scrollHeight - scrollTop - clientHeight < threshold;
+    };
+
+    // Handle scroll event
+    const handleScroll = () => {
+        const atBottom = checkIfAtBottom();
+        setIsAtBottom(atBottom);
+        if (atBottom) {
+            setUnreadCount(0);
+        }
+    };
+
     // Poll for messages and typing status
     useEffect(() => {
         if (!channelId) return;
@@ -34,8 +55,21 @@ const ChatRoom = ({ user }) => {
             try {
                 const res = await api.getMessages(channelId);
                 if (res.messages) {
-                    // Backend sends newest first, reverse to show oldest first (newest at bottom)
+                    // Backend sends newest first, reverse to show oldest first
                     const sortedMessages = [...res.messages].reverse();
+
+                    // Check for new messages
+                    if (sortedMessages.length > 0) {
+                        const latestId = sortedMessages[sortedMessages.length - 1].id;
+                        if (lastMessageIdRef.current && latestId > lastMessageIdRef.current) {
+                            // New message arrived
+                            if (!isAtBottom) {
+                                setUnreadCount(prev => prev + 1);
+                            }
+                        }
+                        lastMessageIdRef.current = latestId;
+                    }
+
                     setMessages(sortedMessages);
                 }
                 if (res.typing) {
@@ -50,14 +84,14 @@ const ChatRoom = ({ user }) => {
         fetchMessages();
         const interval = setInterval(fetchMessages, 2000);
         return () => clearInterval(interval);
-    }, [channelId, user.name]);
+    }, [channelId, user.name, isAtBottom]);
 
-    // Auto scroll to bottom when messages change
+    // Auto scroll to bottom only if user is already at bottom
     useEffect(() => {
-        if (messagesEndRef.current) {
+        if (isAtBottom && messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [messages, typingUsers]);
+    }, [messages, typingUsers, isAtBottom]);
 
     // Handle typing indicator
     const handleInputChange = (e) => {
@@ -219,7 +253,7 @@ const ChatRoom = ({ user }) => {
             {error && <div className="error-msg">{error}</div>}
 
             <div className="chat-container">
-                <div className="messages-area">
+                <div className="messages-area" ref={messagesAreaRef} onScroll={handleScroll}>
                     {messages.map(renderMessage)}
 
                     {/* Typing Indicator */}
@@ -231,6 +265,20 @@ const ChatRoom = ({ user }) => {
 
                     <div ref={messagesEndRef} />
                 </div>
+
+                {/* Unread Messages Badge */}
+                {unreadCount > 0 && (
+                    <div
+                        className="unread-badge"
+                        onClick={() => {
+                            setIsAtBottom(true);
+                            setUnreadCount(0);
+                            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                    >
+                        {unreadCount} new message{unreadCount > 1 ? 's' : ''} ↓
+                    </div>
+                )}
 
                 <form className="chat-input-area" onSubmit={handleSend}>
                     <input
