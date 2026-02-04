@@ -57,26 +57,11 @@ const ChatRoom = ({ user }) => {
                 if (res.messages) {
                     const sortedMessages = [...res.messages].reverse();
 
-                    // First load - restore scroll position
+                    // First load - scroll to bottom
                     if (messages.length === 0 && sortedMessages.length > 0) {
                         setMessages(sortedMessages);
-
-                        // Restore last read position from localStorage
                         setTimeout(() => {
-                            const lastReadId = localStorage.getItem(`lastRead_${channelId}`);
-                            if (lastReadId) {
-                                const element = document.getElementById(`msg-${lastReadId}`);
-                                if (element) {
-                                    element.scrollIntoView({ behavior: 'auto', block: 'center' });
-                                    setIsAtBottom(false);
-                                } else {
-                                    // If message not found, go to bottom
-                                    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-                                }
-                            } else {
-                                // First time, go to bottom
-                                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-                            }
+                            messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
                         }, 100);
                         return;
                     }
@@ -115,36 +100,6 @@ const ChatRoom = ({ user }) => {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, typingUsers, isAtBottom]);
-
-    // Save scroll position when user scrolls
-    useEffect(() => {
-        if (!channelId || messages.length === 0) return;
-
-        const saveScrollPosition = () => {
-            // Find the first visible message
-            const messagesArea = messagesAreaRef.current;
-            if (!messagesArea) return;
-
-            const messageElements = messagesArea.querySelectorAll('[id^="msg-"]');
-            for (let elem of messageElements) {
-                const rect = elem.getBoundingClientRect();
-                const containerRect = messagesArea.getBoundingClientRect();
-
-                // Check if message is visible in viewport
-                if (rect.top >= containerRect.top && rect.top <= containerRect.bottom) {
-                    const msgId = elem.id.replace('msg-', '');
-                    localStorage.setItem(`lastRead_${channelId}`, msgId);
-                    break;
-                }
-            }
-        };
-
-        const messagesArea = messagesAreaRef.current;
-        if (messagesArea) {
-            messagesArea.addEventListener('scroll', saveScrollPosition);
-            return () => messagesArea.removeEventListener('scroll', saveScrollPosition);
-        }
-    }, [channelId, messages]);
 
     // Handle typing indicator
     const handleInputChange = (e) => {
@@ -287,6 +242,27 @@ const ChatRoom = ({ user }) => {
             );
         }
 
+        // Check if it's a Watch Together link
+        if (msg.body.startsWith('[WATCH]')) {
+            const videoUrl = msg.body.substring(7);
+            const watchUrl = `https://www.watch2gether.com/go#${encodeURIComponent(videoUrl)}`;
+            return (
+                <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'} watch-message`}>
+                    <span className="message-author">{msg.author}</span>
+                    <div className="watch-card">
+                        <span style={{ fontSize: '1.2rem' }}>🍿 Together Watch</span>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.8 }}>Join to watch movie together</p>
+                        <button
+                            onClick={() => window.open(watchUrl, '_blank')}
+                            className="join-watch-btn"
+                        >
+                            Join & Watch
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         // Regular text message
         const text = msg.body.replace(/<[^>]+>/g, '');
         return (
@@ -306,9 +282,7 @@ const ChatRoom = ({ user }) => {
     const watchTogether = () => {
         const videoUrl = prompt('Enter YouTube Video URL:');
         if (videoUrl) {
-            const watchUrl = `https://www.watch2gether.com/go#${encodeURIComponent(videoUrl)}`;
-            window.open(watchUrl, '_blank');
-            api.postMessage(channelId, `🍿 Let's watch together: ${videoUrl}`, user.session_id);
+            api.postMessage(channelId, `[WATCH]${videoUrl}`, user.session_id);
         }
     };
 
