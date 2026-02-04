@@ -55,8 +55,31 @@ const ChatRoom = ({ user }) => {
             try {
                 const res = await api.getMessages(channelId);
                 if (res.messages) {
-                    // Backend sends newest first, reverse to show oldest first
                     const sortedMessages = [...res.messages].reverse();
+
+                    // First load - restore scroll position
+                    if (messages.length === 0 && sortedMessages.length > 0) {
+                        setMessages(sortedMessages);
+
+                        // Restore last read position from localStorage
+                        setTimeout(() => {
+                            const lastReadId = localStorage.getItem(`lastRead_${channelId}`);
+                            if (lastReadId) {
+                                const element = document.getElementById(`msg-${lastReadId}`);
+                                if (element) {
+                                    element.scrollIntoView({ behavior: 'auto', block: 'center' });
+                                    setIsAtBottom(false);
+                                } else {
+                                    // If message not found, go to bottom
+                                    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                                }
+                            } else {
+                                // First time, go to bottom
+                                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                            }
+                        }, 100);
+                        return;
+                    }
 
                     // Check for new messages
                     if (sortedMessages.length > 0) {
@@ -84,14 +107,44 @@ const ChatRoom = ({ user }) => {
         fetchMessages();
         const interval = setInterval(fetchMessages, 2000);
         return () => clearInterval(interval);
-    }, [channelId, user.name, isAtBottom]);
+    }, [channelId, user.name, isAtBottom, messages.length]);
 
     // Auto scroll to bottom only if user is already at bottom
     useEffect(() => {
-        if (isAtBottom && messagesEndRef.current) {
+        if (isAtBottom && messagesEndRef.current && messages.length > 0) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages, typingUsers, isAtBottom]);
+
+    // Save scroll position when user scrolls
+    useEffect(() => {
+        if (!channelId || messages.length === 0) return;
+
+        const saveScrollPosition = () => {
+            // Find the first visible message
+            const messagesArea = messagesAreaRef.current;
+            if (!messagesArea) return;
+
+            const messageElements = messagesArea.querySelectorAll('[id^="msg-"]');
+            for (let elem of messageElements) {
+                const rect = elem.getBoundingClientRect();
+                const containerRect = messagesArea.getBoundingClientRect();
+
+                // Check if message is visible in viewport
+                if (rect.top >= containerRect.top && rect.top <= containerRect.bottom) {
+                    const msgId = elem.id.replace('msg-', '');
+                    localStorage.setItem(`lastRead_${channelId}`, msgId);
+                    break;
+                }
+            }
+        };
+
+        const messagesArea = messagesAreaRef.current;
+        if (messagesArea) {
+            messagesArea.addEventListener('scroll', saveScrollPosition);
+            return () => messagesArea.removeEventListener('scroll', saveScrollPosition);
+        }
+    }, [channelId, messages]);
 
     // Handle typing indicator
     const handleInputChange = (e) => {
@@ -208,12 +261,13 @@ const ChatRoom = ({ user }) => {
 
     const renderMessage = (msg) => {
         const isMine = msg.author === user.name;
+        const msgId = `msg-${msg.id}`;
 
         // Check if it's an image
         if (msg.body.startsWith('[IMAGE]')) {
             const imageData = msg.body.substring(7);
             return (
-                <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+                <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'}`}>
                     <span className="message-author">{msg.author}</span>
                     <img src={imageData} alt="Shared" style={{ maxWidth: '200px', borderRadius: '8px', marginTop: '4px' }} />
                 </div>
@@ -224,7 +278,7 @@ const ChatRoom = ({ user }) => {
         if (msg.body.startsWith('[VOICE]')) {
             const audioData = msg.body.substring(7);
             return (
-                <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+                <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'}`}>
                     <span className="message-author">{msg.author}</span>
                     <audio controls style={{ maxWidth: '200px', marginTop: '4px' }}>
                         <source src={audioData} type="audio/webm" />
@@ -236,19 +290,46 @@ const ChatRoom = ({ user }) => {
         // Regular text message
         const text = msg.body.replace(/<[^>]+>/g, '');
         return (
-            <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+            <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'}`}>
                 <span className="message-author">{msg.author}</span>
                 {text}
             </div>
         );
     };
 
+    const startMeeting = () => {
+        const meetingUrl = `https://meet.jit.si/FriendsChatRoom_${channelId}`;
+        window.open(meetingUrl, '_blank');
+        api.postMessage(channelId, `🎥 Started a video meeting: ${meetingUrl}`, user.session_id);
+    };
+
+    const watchTogether = () => {
+        const videoUrl = prompt('Enter YouTube Video URL:');
+        if (videoUrl) {
+            const watchUrl = `https://www.watch2gether.com/go#${encodeURIComponent(videoUrl)}`;
+            window.open(watchUrl, '_blank');
+            api.postMessage(channelId, `🍿 Let's watch together: ${videoUrl}`, user.session_id);
+        }
+    };
+
     if (!channelId && !error) return <div className="card">Loading Chat...</div>;
 
     return (
-        <div className="card" style={{ width: '100%', maxWidth: '800px' }}>
-            <h1>Friends Chat Room</h1>
-            <h2>Share your experiences</h2>
+        <div className="card chat-room-card" style={{ width: '100%', maxWidth: '800px' }}>
+            <div className="chat-header">
+                <div>
+                    <h1>Friends Chat Room</h1>
+                    <h2>Share your experiences</h2>
+                </div>
+                <div className="header-actions">
+                    <button onClick={startMeeting} className="action-button meeting-btn" title="Start Video Meeting">
+                        🎥 Meeting
+                    </button>
+                    <button onClick={watchTogether} className="action-button watch-btn" title="Watch Together">
+                        🍿 Watch
+                    </button>
+                </div>
+            </div>
 
             {error && <div className="error-msg">{error}</div>}
 

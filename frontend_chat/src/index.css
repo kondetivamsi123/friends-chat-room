@@ -254,3 +254,91 @@ h2 {
     opacity: 1;
   }
 }
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-button {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.action-button:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.meeting-btn:hover {
+  background: #25d366;
+  /* WhatsApp Green */
+}
+
+.watch-btn:hover {
+  background: #ff0000;
+  /* YouTube Red */
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  body {
+    padding: 0;
+  }
+
+  .card {
+    min-height: 100vh;
+    border-radius: 0;
+    max-width: 100% !important;
+    margin: 0;
+    padding: 1rem;
+  }
+
+  .chat-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .action-button {
+    flex: 1;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+
+  .messages-area {
+    height: calc(100vh - 280px);
+  }
+
+  .chat-input-area {
+    padding: 0.5rem 0;
+  }
+
+  .message {
+    max-width: 85%;
+  }
+}
