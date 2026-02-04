@@ -178,3 +178,47 @@ h2 {
   font-style: italic;
   animation: fadeIn 0.3s ease-in;
 }
+
+.icon-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  transition: transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button:hover {
+  transform: scale(1.1);
+}
+
+.icon-button.recording {
+  animation: pulse 1s infinite;
+  color: #ff4444;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.chat-input-area {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chat-input-area input[type="text"] {
+  flex: 1;
+}

@@ -7,8 +7,11 @@ const ChatRoom = ({ user }) => {
     const [channelId, setChannelId] = useState(null);
     const [error, setError] = useState('');
     const [typingUsers, setTypingUsers] = useState([]);
+    const [isRecording, setIsRecording] = useState(false);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     // Initialize Chat
     useEffect(() => {
@@ -31,10 +34,11 @@ const ChatRoom = ({ user }) => {
             try {
                 const res = await api.getMessages(channelId);
                 if (res.messages) {
-                    setMessages(res.messages.reverse());
+                    // Backend sends newest first, reverse to show oldest first (newest at bottom)
+                    const sortedMessages = [...res.messages].reverse();
+                    setMessages(sortedMessages);
                 }
                 if (res.typing) {
-                    // Filter out current user from typing list
                     const others = res.typing.filter(name => name !== user.name);
                     setTypingUsers(others);
                 }
@@ -44,32 +48,109 @@ const ChatRoom = ({ user }) => {
         };
 
         fetchMessages();
-        const interval = setInterval(fetchMessages, 2000); // Poll every 2s
+        const interval = setInterval(fetchMessages, 2000);
         return () => clearInterval(interval);
     }, [channelId, user.name]);
 
-    // Auto scroll
+    // Auto scroll to bottom when messages change
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages, typingUsers]);
 
     // Handle typing indicator
     const handleInputChange = (e) => {
         setInputVal(e.target.value);
 
-        // Send typing indicator
         if (user.session_id) {
             api.setTyping(channelId, true, user.session_id).catch(console.error);
 
-            // Clear previous timeout
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
 
-            // Stop typing after 3 seconds of inactivity
             typingTimeoutRef.current = setTimeout(() => {
                 api.setTyping(channelId, false, user.session_id).catch(console.error);
             }, 3000);
+        }
+    };
+
+    // Handle file upload (photos)
+    const handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            setError('Please select an image file');
+            setTimeout(() => setError(''), 3000);
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Image too large. Max 5MB');
+            setTimeout(() => setError(''), 3000);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const base64Image = event.target.result;
+            const messageBody = `[IMAGE]${base64Image}`;
+
+            try {
+                await api.postMessage(channelId, messageBody, user.session_id);
+            } catch (err) {
+                setError('Failed to send image: ' + err);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Start voice recording
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunksRef.current.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const reader = new FileReader();
+
+                reader.onload = async (event) => {
+                    const base64Audio = event.target.result;
+                    const messageBody = `[VOICE]${base64Audio}`;
+
+                    try {
+                        await api.postMessage(channelId, messageBody, user.session_id);
+                    } catch (err) {
+                        setError('Failed to send voice: ' + err);
+                    }
+                };
+                reader.readAsDataURL(audioBlob);
+
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+        } catch (err) {
+            setError('Microphone access denied');
+            setTimeout(() => setError(''), 3000);
+        }
+    };
+
+    // Stop voice recording
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
         }
     };
 
@@ -78,9 +159,8 @@ const ChatRoom = ({ user }) => {
         if (!inputVal.trim()) return;
 
         const txt = inputVal;
-        setInputVal(''); // Optimistic clear
+        setInputVal('');
 
-        // Clear typing indicator
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
@@ -90,6 +170,43 @@ const ChatRoom = ({ user }) => {
         } catch (err) {
             setError('Failed to send: ' + err);
         }
+    };
+
+    const renderMessage = (msg) => {
+        const isMine = msg.author === user.name;
+
+        // Check if it's an image
+        if (msg.body.startsWith('[IMAGE]')) {
+            const imageData = msg.body.substring(7);
+            return (
+                <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+                    <span className="message-author">{msg.author}</span>
+                    <img src={imageData} alt="Shared" style={{ maxWidth: '200px', borderRadius: '8px', marginTop: '4px' }} />
+                </div>
+            );
+        }
+
+        // Check if it's a voice message
+        if (msg.body.startsWith('[VOICE]')) {
+            const audioData = msg.body.substring(7);
+            return (
+                <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+                    <span className="message-author">{msg.author}</span>
+                    <audio controls style={{ maxWidth: '200px', marginTop: '4px' }}>
+                        <source src={audioData} type="audio/webm" />
+                    </audio>
+                </div>
+            );
+        }
+
+        // Regular text message
+        const text = msg.body.replace(/<[^>]+>/g, '');
+        return (
+            <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
+                <span className="message-author">{msg.author}</span>
+                {text}
+            </div>
+        );
     };
 
     if (!channelId && !error) return <div className="card">Loading Chat...</div>;
@@ -103,17 +220,7 @@ const ChatRoom = ({ user }) => {
 
             <div className="chat-container">
                 <div className="messages-area">
-                    {messages.map((msg) => {
-                        const isMine = msg.author === user.name;
-                        const text = msg.body.replace(/<[^>]+>/g, '');
-
-                        return (
-                            <div key={msg.id} className={`message ${isMine ? 'mine' : 'others'}`}>
-                                <span className="message-author">{msg.author}</span>
-                                {text}
-                            </div>
-                        );
-                    })}
+                    {messages.map(renderMessage)}
 
                     {/* Typing Indicator */}
                     {typingUsers.length > 0 && (
@@ -126,6 +233,29 @@ const ChatRoom = ({ user }) => {
                 </div>
 
                 <form className="chat-input-area" onSubmit={handleSend}>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                        id="file-input"
+                    />
+                    <label htmlFor="file-input" className="icon-button" title="Send Photo">
+                        📷
+                    </label>
+
+                    <button
+                        type="button"
+                        className={`icon-button ${isRecording ? 'recording' : ''}`}
+                        onMouseDown={startRecording}
+                        onMouseUp={stopRecording}
+                        onTouchStart={startRecording}
+                        onTouchEnd={stopRecording}
+                        title="Hold to record voice"
+                    >
+                        {isRecording ? '⏹️' : '🎤'}
+                    </button>
+
                     <input
                         type="text"
                         placeholder="Type your message..."
