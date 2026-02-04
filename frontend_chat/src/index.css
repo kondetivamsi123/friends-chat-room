@@ -26,8 +26,8 @@ body {
 
 #root {
   width: 100%;
-  max-width: 800px;
-  padding: 2rem;
+  max-width: 1200px;
+  padding: 1rem;
   text-align: center;
 }
 
@@ -110,6 +110,15 @@ h2 {
   }
 }
 
+.App {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+
 /* Chat Specifics */
 .chat-container {
   display: flex;
@@ -118,14 +127,25 @@ h2 {
 }
 
 .messages-area {
-  flex: 1;
+  height: 600px;
+  max-height: calc(100vh - 300px);
   overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  position: relative;
+  scrollbar-width: thin;
   border: 1px solid #333;
+  /* Kept from original */
   border-radius: 8px;
-  padding: 1rem;
+  /* Kept from original */
   margin-bottom: 1rem;
+  /* Kept from original */
   background-color: #1a1a1a;
+  /* Kept from original */
   text-align: left;
+  /* Kept from original */
 }
 
 .message {

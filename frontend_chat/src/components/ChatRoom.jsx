@@ -16,6 +16,7 @@ const ChatRoom = ({ user }) => {
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
     const lastMessageIdRef = useRef(null);
+    const prevMessagesLengthRef = useRef(0);
 
     // Initialize Chat
     useEffect(() => {
@@ -34,7 +35,7 @@ const ChatRoom = ({ user }) => {
     const checkIfAtBottom = () => {
         if (!messagesAreaRef.current) return true;
         const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current;
-        const threshold = 100; // pixels from bottom
+        const threshold = 150; // increased threshold for mobile/stretching
         return scrollHeight - scrollTop - clientHeight < threshold;
     };
 
@@ -63,6 +64,8 @@ const ChatRoom = ({ user }) => {
                         setTimeout(() => {
                             messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
                         }, 100);
+                        lastMessageIdRef.current = sortedMessages[sortedMessages.length - 1].id;
+                        prevMessagesLengthRef.current = sortedMessages.length;
                         return;
                     }
 
@@ -92,14 +95,24 @@ const ChatRoom = ({ user }) => {
         fetchMessages();
         const interval = setInterval(fetchMessages, 2000);
         return () => clearInterval(interval);
-    }, [channelId, user.name, isAtBottom, messages.length]);
+    }, [channelId]); // Removed triggers that caused jumps
 
-    // Auto scroll to bottom only if user is already at bottom
+    // Auto scroll to bottom only when new messages are added AND user is at bottom
     useEffect(() => {
-        if (isAtBottom && messagesEndRef.current && messages.length > 0) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        if (messages.length > prevMessagesLengthRef.current) {
+            if (isAtBottom) {
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }
+            prevMessagesLengthRef.current = messages.length;
         }
-    }, [messages, typingUsers, isAtBottom]);
+    }, [messages, isAtBottom]);
+
+    // Handle typing status separately (don't scroll unless at bottom)
+    useEffect(() => {
+        if (isAtBottom && typingUsers.length > 0) {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [typingUsers, isAtBottom]);
 
     // Handle typing indicator
     const handleInputChange = (e) => {
