@@ -319,6 +319,12 @@ h2 {
   /* YouTube Red */
 }
 
+.logout-btn:hover {
+  background: #cf6679;
+  /* Error Red */
+}
+
+
 /* Responsive Design */
 @media (max-width: 600px) {
   body {

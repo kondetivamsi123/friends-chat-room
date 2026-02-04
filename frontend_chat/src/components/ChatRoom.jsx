@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 
-const ChatRoom = ({ user }) => {
+const ChatRoom = ({ user, onLogout }) => {
     const [messages, setMessages] = useState([]);
     const [inputVal, setInputVal] = useState('');
     const [channelId, setChannelId] = useState(null);
@@ -35,8 +35,8 @@ const ChatRoom = ({ user }) => {
     const checkIfAtBottom = () => {
         if (!messagesAreaRef.current) return true;
         const { scrollTop, scrollHeight, clientHeight } = messagesAreaRef.current;
-        const threshold = 150; // increased threshold for mobile/stretching
-        return scrollHeight - scrollTop - clientHeight < threshold;
+        // Be more strict about bottom detection to prevent accidental scrolls
+        return scrollHeight - scrollTop - clientHeight < 20;
     };
 
     // Handle scroll event
@@ -75,7 +75,7 @@ const ChatRoom = ({ user }) => {
                         if (lastMessageIdRef.current && latestId > lastMessageIdRef.current) {
                             // New message arrived
                             if (!isAtBottom) {
-                                setUnreadCount(prev => prev + 1);
+                                setUnreadCount(prev => (latestId > lastMessageIdRef.current ? prev + 1 : prev));
                             }
                         }
                         lastMessageIdRef.current = latestId;
@@ -95,19 +95,16 @@ const ChatRoom = ({ user }) => {
         fetchMessages();
         const interval = setInterval(fetchMessages, 2000);
         return () => clearInterval(interval);
-    }, [channelId]); // Removed triggers that caused jumps
+    }, [channelId, isAtBottom]); // Added isAtBottom to dependency to ensure correct state in closure
 
-    // Auto scroll to bottom only when new messages are added AND user is at bottom
+    // Auto scroll to bottom ONLY when new messages are added AND user is at bottom
     useEffect(() => {
         if (messages.length > prevMessagesLengthRef.current) {
             const lastMsg = messages[messages.length - 1];
-            const sentByMe = lastMsg?.author === user.name;
+            const IsSentByMe = lastMsg?.author === user.name;
 
-            // Always scroll if I sent the message, OR if I'm already at the bottom
-            if (sentByMe || isAtBottom) {
+            if (IsSentByMe || isAtBottom) {
                 messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                // Reset isAtBottom if I sent it
-                if (sentByMe) setIsAtBottom(true);
             }
             prevMessagesLengthRef.current = messages.length;
         }
@@ -315,6 +312,9 @@ const ChatRoom = ({ user }) => {
                     </button>
                     <button onClick={watchTogether} className="action-button watch-btn" title="Watch Together">
                         🍿 Watch
+                    </button>
+                    <button onClick={onLogout} className="action-button logout-btn" title="Logout">
+                        ❌ Logout
                     </button>
                 </div>
             </div>

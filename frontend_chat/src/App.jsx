@@ -22,6 +22,13 @@ function App() {
     setStep('chat');
   };
 
+  const handleLogout = () => {
+    setUser(null);
+    setStep('login');
+    // Clear any room session info if needed
+    localStorage.removeItem('chat_session');
+  };
+
   return (
     <div className="App">
       {step === 'login' && (
@@ -38,7 +45,7 @@ function App() {
       )}
 
       {step === 'chat' && user && (
-        <ChatRoom user={user} />
+        <ChatRoom user={user} onLogout={handleLogout} />
       )}
     </div>
   );
