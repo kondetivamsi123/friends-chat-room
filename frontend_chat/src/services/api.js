@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Simplified API service for Python Backend
 const client = axios.create({
-    baseURL: '', // Proxied to localhost:8069 via Vite
+    baseURL: 'https://friends-chat-room.onrender.com', // Backend on Render
     headers: {
         'Content-Type': 'application/json',
     },
