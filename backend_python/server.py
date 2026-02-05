@@ -1,10 +1,27 @@
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import datetime
 
-app = Flask(__name__)
-# Enable CORS for frontend
+# Point to the frontend build folder
+frontend_folder = os.path.join(os.getcwd(), 'frontend_chat', 'dist')
+app = Flask(__name__, static_folder=frontend_folder, static_url_path='')
+# Enable CORS for local development
 CORS(app)
+
+# =======================
+# STATIC FRONTEND ROUTES
+# =======================
+
+@app.route('/')
+def serve_index():
+    return send_from_directory(app.static_folder, 'index.html')
+
+@app.errorhandler(404)
+def not_found(e):
+    # This ensures React routing works if you refresh on a sub-page
+    return send_from_directory(app.static_folder, 'index.html')
+
 
 # =======================
 # MOCK DATABASE

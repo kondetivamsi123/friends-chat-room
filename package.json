@@ -4,8 +4,8 @@
     "description": "Root workspace for MFA Login project",
     "scripts": {
         "dev": "npm run dev --prefix frontend_chat",
-        "build": "npm run build --prefix frontend_chat",
-        "install-frontend": "npm install --prefix frontend_chat",
+        "build": "pip install -r backend_python/requirements.txt && npm install --prefix frontend_chat && npm run build --prefix frontend_chat",
+        "start": "python backend_python/server.py",
         "backend": "python backend_python/server.py"
     },
     "author": "",
