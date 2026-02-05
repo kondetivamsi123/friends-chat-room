@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 
-const ChatRoom = ({ user, onLogout }) => {
+const ChatRoom = ({ user, onLogout, onOpenDao }) => {
     const [messages, setMessages] = useState([]);
     const [inputVal, setInputVal] = useState('');
     const [channelId, setChannelId] = useState(null);
