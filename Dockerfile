@@ -21,8 +21,8 @@ COPY --from=frontend-builder /app/frontend_chat/dist ./frontend_chat/dist
 COPY backend_python/ ./backend_python/
 
 # Environment variables
-ENV PORT=8069
 ENV PYTHONUNBUFFERED=1
+# Render provides the PORT environment variable automatically
 
-# Start command (using gunicorn for production)
-CMD ["gunicorn", "--bind", "0.0.0.0:8069", "--working-directory", "backend_python", "server:app"]
+# Start command (using shell to resolve $PORT)
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8069} --working-directory backend_python server:app"]

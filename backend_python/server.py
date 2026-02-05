@@ -16,13 +16,16 @@ CORS(app)
 
 @app.route('/api/debug')
 def debug_paths():
+    exists = os.path.exists(frontend_folder)
     return jsonify({
         'cwd': os.getcwd(),
         'base_dir': BASE_DIR,
         'frontend_folder': frontend_folder,
-        'folder_exists': os.path.exists(frontend_folder),
-        'files_in_dist': os.listdir(frontend_folder) if os.path.exists(frontend_folder) else []
+        'folder_exists': exists,
+        'files_in_dist': os.listdir(frontend_folder) if exists and os.path.isdir(frontend_folder) else "Not a directory or missing"
     })
+
+import uuid
 
 @app.route('/')
 def serve_index():
