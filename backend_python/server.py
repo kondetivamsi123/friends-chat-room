@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import datetime
+import uuid
 
 # Robust path logic for Render/Production
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,18 +23,35 @@ def debug_paths():
         'base_dir': BASE_DIR,
         'frontend_folder': frontend_folder,
         'folder_exists': exists,
-        'files_in_dist': os.listdir(frontend_folder) if exists and os.path.isdir(frontend_folder) else "Not a directory or missing"
+        'files_in_dist': os.listdir(frontend_folder) if exists and os.path.isdir(frontend_folder) else "Missing"
     })
-
-import uuid
 
 @app.route('/')
 def serve_index():
+    if not os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return """
+        <div style="font-family:sans-serif; text-align:center; padding:50px; background:#1a1a1a; color:white; height:100vh;">
+            <h1>🚀 Backend is Live!</h1>
+            <p>But the Chat UI is still building or not found.</p>
+            <div style="background:#333; padding:20px; border-radius:10px; display:inline-block; margin-top:20px;">
+                <h3 style="color:#03dac6">Final Deployment Step Needed:</h3>
+                <ol style="text-align:left;">
+                    <li>Go to your <b>Render Dashboard</b></li>
+                    <li>Open <b>Settings</b> for this service</li>
+                    <li>Change <b>Environment</b> (Runtime) from 'Python' to <b>'Docker'</b></li>
+                    <li>Click <b>Save Changes</b></li>
+                </ol>
+            </div>
+            <p style="margin-top:20px; color:#aaa;">Once you switch to Docker, Render will build the UI automatically.</p>
+        </div>
+        """, 200
     return send_from_directory(app.static_folder, 'index.html')
 
 @app.errorhandler(404)
 def not_found(e):
-    # This ensures React routing works if you refresh on a sub-page
+    # This ensures React routing works
+    if not os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return debug_paths()
     return send_from_directory(app.static_folder, 'index.html')
 
 
