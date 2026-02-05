@@ -55,35 +55,23 @@ def not_found(e):
     return send_from_directory(app.static_folder, 'index.html')
 
 
-# =======================
-# MOCK DATABASE
-# =======================
 users = {
-    # Main User
-    "vkrishna368.mail.com@gmail.com": {
-        "password": "Vamsi@143", 
-        "name": "Vamsi Krishna", 
-        "mfa_secret": "123456", 
-        "mfa_enabled": True
-    },
-    # Friend 1
-    "Saiprakash": {
-        "password": "Sai@123",
-        "name": "Sai Prakash",
-        "mfa_secret": "123456",
-        "mfa_enabled": True
-    },
-    # Friend 2
-    "Danarao": {
-        "password": "Dana@123",
-        "name": "Dana Rao",
-        "mfa_secret": "123456",
-        "mfa_enabled": True
-    },
+    "vkrishna368.mail.com@gmail.com": {"password": "Vamsi@143", "name": "Vamsi Krishna", "mfa_secret": "123456", "mfa_enabled": True},
+    "Saiprakash": {"password": "Sai@123", "name": "Sai Prakash", "mfa_secret": "123456", "mfa_enabled": True},
+    "Danarao": {"password": "Dana@123", "name": "Dana Rao", "mfa_secret": "123456", "mfa_enabled": True},
 }
 
+# Advanced Channel Structure
+# channels = { id: { name, members: [], admin: username, messages: [], typing: {}, is_private: bool } }
 channels = {
-    1: {"name": "Experience Sharing", "messages": [], "typing": {}}
+    1: {
+        "name": "General Chat", 
+        "messages": [], 
+        "typing": {}, 
+        "members": list(users.keys()), # Everyone is in General
+        "admin": "vkrishna368.mail.com@gmail.com",
+        "is_private": False
+    }
 }
 
 # Session storage to track logged-in users
@@ -187,31 +175,141 @@ def mfa_verify():
 # CHAT ROUTES
 # =======================
 
+@app.route('/api/chat/channels', methods=['POST'])
+def get_channels():
+    data = request.json
+    session_id = data.get('session_id')
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    username = sessions[session_id]['username']
+    # Only return channels where user is a member
+    user_channels = []
+    for cid, info in channels.items():
+        if username in info.get('members', []):
+            user_channels.append({
+                'id': cid,
+                'name': info['name'],
+                'is_admin': info.get('admin') == username
+            })
+    return jsonify({'result': user_channels})
+
+@app.route('/api/chat/create', methods=['POST'])
+def create_channel():
+    data = request.json
+    session_id = data.get('session_id')
+    name = data.get('name')
+    members = data.get('members', [])
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    creator = sessions[session_id]['username']
+    if creator not in members:
+        members.append(creator)
+    
+    new_id = max(channels.keys()) + 1
+    channels[new_id] = {
+        "name": name,
+        "messages": [],
+        "typing": {},
+        "members": members,
+        "admin": creator,
+        "is_private": True
+    }
+    return jsonify({'result': {'id': new_id, 'name': name}})
+
+@app.route('/api/chat/delete', methods=['POST'])
+def delete_channel():
+    data = request.json
+    session_id = data.get('session_id')
+    channel_id = int(data.get('channel_id'))
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    username = sessions[session_id]['username']
+    if channels.get(channel_id, {}).get('admin') != username:
+        return jsonify({'error': 'Only admins can delete groups'}), 403
+    
+    channels.pop(channel_id)
+    return jsonify({'result': {'status': 'success'}})
+
+@app.route('/api/chat/message/delete', methods=['POST'])
+def delete_message():
+    data = request.json
+    session_id = data.get('session_id')
+    channel_id = int(data.get('channel_id'))
+    message_id = int(data.get('message_id'))
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    username = sessions[session_id]['username']
+    name = sessions[session_id]['name']
+    
+    if channel_id not in channels:
+        return jsonify({'error': 'Channel not found'}), 404
+    
+    # Check if user is author OR admin
+    channel = channels[channel_id]
+    messages_list = channel['messages']
+    
+    for i, msg in enumerate(messages_list):
+        if msg['id'] == message_id:
+            if msg['author'] == name or channel['admin'] == username:
+                messages_list.pop(i)
+                return jsonify({'result': {'status': 'success'}})
+            else:
+                return jsonify({'error': 'Unauthorized to delete this message'}), 403
+                
+    return jsonify({'error': 'Message not found'}), 404
+
+# =======================
+# EXISTING CHAT ROUTES (UPDATED)
+# =======================
+
 @app.route('/api/chat/join', methods=['POST'])
 def chat_join():
     data = request.json
-    # Always join channel 1
-    return jsonify({
-        'result': {
-            'channel_id': 1,
-            'name': channels[1]['name']
-        }
-    })
+    session_id = data.get('session_id')
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Return the first channel the user is a member of (defaults to General)
+    username = sessions[session_id]['username']
+    for cid, info in channels.items():
+        if username in info.get('members', []):
+            return jsonify({
+                'result': {
+                    'channel_id': cid,
+                    'name': info['name']
+                }
+            })
+    return jsonify({'error': 'No channels found'}), 404
 
 @app.route('/api/chat/messages', methods=['POST'])
 def chat_messages():
     data = request.json
+    session_id = data.get('session_id')
     channel_id = int(data.get('channel_id'))
     
-    msgs = channels.get(channel_id, {}).get('messages', [])
-    typing_users = channels.get(channel_id, {}).get('typing', {})
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
     
-    # Get list of who's typing (exclude expired)
+    username = sessions[session_id]['username']
+    channel = channels.get(channel_id)
+    
+    if not channel or username not in channel.get('members', []):
+        return jsonify({'error': 'Access denied to this channel'}), 403
+    
+    msgs = channel.get('messages', [])
+    typing_users = channel.get('typing', {})
+    
     import time
     current_time = time.time()
     active_typing = [name for name, timestamp in typing_users.items() if current_time - timestamp < 5]
     
-    # Return last 50 messages
     return jsonify({
         'result': {
             'messages': sorted(msgs[-50:], key=lambda x: x['id'], reverse=True),
