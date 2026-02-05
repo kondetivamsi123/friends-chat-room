@@ -3,15 +3,26 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import datetime
 
-# Point to the frontend build folder
-frontend_folder = os.path.join(os.getcwd(), 'frontend_chat', 'dist')
+# Robust path logic for Render/Production
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_folder = os.path.join(BASE_DIR, 'frontend_chat', 'dist')
+
 app = Flask(__name__, static_folder=frontend_folder, static_url_path='')
-# Enable CORS for local development
 CORS(app)
 
 # =======================
-# STATIC FRONTEND ROUTES
+# DEBUG & DIAGNOSTICS
 # =======================
+
+@app.route('/api/debug')
+def debug_paths():
+    return jsonify({
+        'cwd': os.getcwd(),
+        'base_dir': BASE_DIR,
+        'frontend_folder': frontend_folder,
+        'folder_exists': os.path.exists(frontend_folder),
+        'files_in_dist': os.listdir(frontend_folder) if os.path.exists(frontend_folder) else []
+    })
 
 @app.route('/')
 def serve_index():
