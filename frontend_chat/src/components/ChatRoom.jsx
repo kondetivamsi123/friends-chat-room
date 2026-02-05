@@ -7,6 +7,8 @@ const ChatRoom = ({ user, onLogout }) => {
     const [channelId, setChannelId] = useState(null);
     const [error, setError] = useState('');
     const [typingUsers, setTypingUsers] = useState([]);
+    const [onlineUsers, setOnlineUsers] = useState([]);
+    const [activeMeeting, setActiveMeeting] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isAtBottom, setIsAtBottom] = useState(true);
