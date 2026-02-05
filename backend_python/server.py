@@ -422,6 +422,9 @@ def chat_post():
 # DAO & GEMINI ROUTES
 # =======================
 
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from dao_module import DAOController
 from gemini_agent import GeminiAgent
 
