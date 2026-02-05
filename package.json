@@ -5,7 +5,8 @@
     "scripts": {
         "dev": "npm run dev --prefix frontend_chat",
         "build": "npm run build --prefix frontend_chat",
-        "install-frontend": "npm install --prefix frontend_chat"
+        "install-frontend": "npm install --prefix frontend_chat",
+        "backend": "python backend_python/server.py"
     },
     "author": "",
     "license": "ISC"

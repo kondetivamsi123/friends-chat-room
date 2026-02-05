@@ -40,6 +40,10 @@ channels = {
 # Session storage to track logged-in users
 sessions = {}
 
+# Presence tracking
+presence = {} # {username: last_active_timestamp}
+meetings = {} # {channel_id: {"meeting_url": url, "started_by": name, "start_time": iso}}
+
 # =======================
 # AUTH ROUTES
 # =======================
@@ -165,6 +169,53 @@ def chat_messages():
             'typing': active_typing
         }
     })
+
+@app.route('/api/chat/presence', methods=['POST'])
+def chat_presence():
+    """Update presence status and return online users + meeting info"""
+    data = request.json
+    session_id = data.get('session_id')
+    channel_id = int(data.get('channel_id', 1))
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Invalid session'}), 401
+    
+    user_name = sessions[session_id]['name']
+    import time
+    current_time = time.time()
+    presence[user_name] = current_time
+    
+    online_users = [name for name, timestamp in presence.items() if current_time - timestamp < 15]
+    
+    meeting_info = meetings.get(channel_id)
+    
+    return jsonify({
+        'result': {
+            'status': 'success',
+            'online': online_users,
+            'meeting': meeting_info
+        }
+    })
+
+@app.route('/api/chat/meeting/start', methods=['POST'])
+def start_meeting_route():
+    data = request.json
+    channel_id = int(data.get('channel_id', 1))
+    url = data.get('url')
+    session_id = data.get('session_id')
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Invalid session'}), 401
+        
+    user_name = sessions[session_id]['name']
+    
+    meetings[channel_id] = {
+        'meeting_url': url,
+        'started_by': user_name,
+        'start_time': datetime.datetime.now().isoformat()
+    }
+    
+    return jsonify({'result': {'status': 'success'}})
 
 @app.route('/api/chat/typing', methods=['POST'])
 def chat_typing():

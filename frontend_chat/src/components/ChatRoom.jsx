@@ -92,10 +92,33 @@ const ChatRoom = ({ user, onLogout }) => {
             }
         };
 
+        const fetchPresence = async () => {
+            if (!user.session_id) return;
+            try {
+                const res = await api.getPresence(user.session_id, channelId);
+                if (res.online) {
+                    setOnlineUsers(res.online);
+                }
+                if (res.meeting) {
+                    setActiveMeeting(res.meeting);
+                } else {
+                    setActiveMeeting(null);
+                }
+            } catch (err) {
+                console.error("Presence error", err);
+            }
+        };
+
         fetchMessages();
-        const interval = setInterval(fetchMessages, 2000);
-        return () => clearInterval(interval);
-    }, [channelId, isAtBottom]); // Added isAtBottom to dependency to ensure correct state in closure
+        fetchPresence();
+        const msgInterval = setInterval(fetchMessages, 2000);
+        const presenceInterval = setInterval(fetchPresence, 10000);
+
+        return () => {
+            clearInterval(msgInterval);
+            clearInterval(presenceInterval);
+        };
+    }, [channelId, isAtBottom, user.session_id]); // Added session_id dependency
 
     // Auto scroll to bottom ONLY when new messages are added AND user is at bottom
     useEffect(() => {
@@ -307,8 +330,19 @@ const ChatRoom = ({ user, onLogout }) => {
                     <h2>Share your experiences</h2>
                 </div>
                 <div className="header-actions">
+                    {activeMeeting && (
+                        <button onClick={joinActiveMeeting} className="action-button join-btn" title="Join In-Progress Meeting">
+                            🟢 Join Meeting
+                        </button>
+                    )}
                     <button onClick={startMeeting} className="action-button meeting-btn" title="Start Video Meeting">
                         🎥 Meeting
+                    </button>
+                    <button onClick={() => {
+                        const exp = prompt('Share your experience with the group:');
+                        if (exp) api.postMessage(channelId, `🌟 **Experience Share:** ${exp}`, user.session_id);
+                    }} className="action-button share-btn" title="Share Experience">
+                        🌟 Share Experience
                     </button>
                     <button onClick={watchTogether} className="action-button watch-btn" title="Watch Together">
                         🍿 Watch
@@ -321,66 +355,84 @@ const ChatRoom = ({ user, onLogout }) => {
 
             {error && <div className="error-msg">{error}</div>}
 
-            <div className="chat-container">
-                <div className="messages-area" ref={messagesAreaRef} onScroll={handleScroll}>
-                    {messages.map(renderMessage)}
+            <div className="main-chat-layout">
+                <div className="participants-sidebar">
+                    <h3>Online Friends</h3>
+                    <div className="online-list">
+                        {onlineUsers.length > 0 ? (
+                            onlineUsers.map(name => (
+                                <div key={name} className="online-user">
+                                    <span className="status-dot"></span>
+                                    {name} {name === user.name && '(You)'}
+                                </div>
+                            ))
+                        ) : (
+                            <p>No one online</p>
+                        )}
+                    </div>
+                </div>
 
-                    {/* Typing Indicator */}
-                    {typingUsers.length > 0 && (
-                        <div className="typing-indicator">
-                            <em>{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</em>
+                <div className="main-chat-content">
+                    <div className="messages-area" ref={messagesAreaRef} onScroll={handleScroll}>
+                        {messages.map(renderMessage)}
+
+                        {/* Typing Indicator */}
+                        {typingUsers.length > 0 && (
+                            <div className="typing-indicator">
+                                <em>{typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...</em>
+                            </div>
+                        )}
+
+                        <div ref={messagesEndRef} />
+                    </div>
+
+                    {/* Unread Messages Badge */}
+                    {unreadCount > 0 && (
+                        <div
+                            className="unread-badge"
+                            onClick={() => {
+                                setIsAtBottom(true);
+                                setUnreadCount(0);
+                                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                        >
+                            {unreadCount} new message{unreadCount > 1 ? 's' : ''} ↓
                         </div>
                     )}
 
-                    <div ref={messagesEndRef} />
+                    <form className="chat-input-area" onSubmit={handleSend}>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileSelect}
+                            style={{ display: 'none' }}
+                            id="file-input"
+                        />
+                        <label htmlFor="file-input" className="icon-button" title="Send Photo">
+                            📷
+                        </label>
+
+                        <button
+                            type="button"
+                            className={`icon-button ${isRecording ? 'recording' : ''}`}
+                            onMouseDown={startRecording}
+                            onMouseUp={stopRecording}
+                            onTouchStart={startRecording}
+                            onTouchEnd={stopRecording}
+                            title="Hold to record voice"
+                        >
+                            {isRecording ? '⏹️' : '🎤'}
+                        </button>
+
+                        <input
+                            type="text"
+                            placeholder="Type your message..."
+                            value={inputVal}
+                            onChange={handleInputChange}
+                        />
+                        <button type="submit">Send</button>
+                    </form>
                 </div>
-
-                {/* Unread Messages Badge */}
-                {unreadCount > 0 && (
-                    <div
-                        className="unread-badge"
-                        onClick={() => {
-                            setIsAtBottom(true);
-                            setUnreadCount(0);
-                            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                    >
-                        {unreadCount} new message{unreadCount > 1 ? 's' : ''} ↓
-                    </div>
-                )}
-
-                <form className="chat-input-area" onSubmit={handleSend}>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                        style={{ display: 'none' }}
-                        id="file-input"
-                    />
-                    <label htmlFor="file-input" className="icon-button" title="Send Photo">
-                        📷
-                    </label>
-
-                    <button
-                        type="button"
-                        className={`icon-button ${isRecording ? 'recording' : ''}`}
-                        onMouseDown={startRecording}
-                        onMouseUp={stopRecording}
-                        onTouchStart={startRecording}
-                        onTouchEnd={stopRecording}
-                        title="Hold to record voice"
-                    >
-                        {isRecording ? '⏹️' : '🎤'}
-                    </button>
-
-                    <input
-                        type="text"
-                        placeholder="Type your message..."
-                        value={inputVal}
-                        onChange={handleInputChange}
-                    />
-                    <button type="submit">Send</button>
-                </form>
             </div>
         </div>
     );

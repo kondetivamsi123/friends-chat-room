@@ -1,8 +1,15 @@
 import axios from 'axios';
 
 // Simplified API service for Python Backend
+const getBaseURL = () => {
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return 'http://localhost:8069';
+    }
+    return 'https://friends-chat-room.onrender.com';
+};
+
 const client = axios.create({
-    baseURL: 'https://friends-chat-room.onrender.com', // Backend on Render
+    baseURL: getBaseURL(),
     headers: {
         'Content-Type': 'application/json',
     },
@@ -37,4 +44,6 @@ export const api = {
     getMessages: (channelId) => callApi('/api/chat/messages', { channel_id: channelId }),
     postMessage: (channelId, body, sessionId) => callApi('/api/chat/post', { channel_id: channelId, body, session_id: sessionId }),
     setTyping: (channelId, isTyping, sessionId) => callApi('/api/chat/typing', { channel_id: channelId, is_typing: isTyping, session_id: sessionId }),
+    getPresence: (sessionId, channelId) => callApi('/api/chat/presence', { session_id: sessionId, channel_id: channelId }),
+    startMeeting: (channelId, url, sessionId) => callApi('/api/chat/meeting/start', { channel_id: channelId, url, session_id: sessionId }),
 };
