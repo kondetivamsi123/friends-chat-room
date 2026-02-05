@@ -209,33 +209,74 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
     };
 
     const startRecording = async () => {
+        if (isRecording) return; // Prevent multiple recordings
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
             mediaRecorderRef.current = mediaRecorder;
             audioChunksRef.current = [];
-            mediaRecorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.onloadend = async () => {
-                    await api.postMessage(channelId, `[VOICE]${reader.result}`, user.session_id);
-                };
-                reader.readAsDataURL(audioBlob);
-                stream.getTracks().forEach(t => t.stop());
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    audioChunksRef.current.push(e.data);
+                }
             };
+
+            mediaRecorder.onstop = async () => {
+                if (audioChunksRef.current.length > 0) {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                        try {
+                            await api.postMessage(channelId, `[VOICE]${reader.result}`, user.session_id);
+                        } catch (err) {
+                            setError('Failed to send voice message');
+                        }
+                    };
+                    reader.readAsDataURL(audioBlob);
+                }
+
+                // Clean up stream
+                stream.getTracks().forEach(track => track.stop());
+
+                // Reset state
+                audioChunksRef.current = [];
+                mediaRecorderRef.current = null;
+                setIsRecording(false);
+            };
+
             mediaRecorder.start();
             setIsRecording(true);
         } catch (err) {
-            setError('Mic access denied');
+            console.error('Recording error:', err);
+            setError('Mic access denied or not available');
+            setIsRecording(false);
         }
     };
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
+            try {
+                mediaRecorderRef.current.stop();
+            } catch (err) {
+                console.error('Stop recording error:', err);
+                setIsRecording(false);
+            }
         }
+    };
+
+    const handleStartVideoCall = () => {
+        const roomName = `room-${channelId}-${Date.now()}`;
+        const jitsiUrl = `https://meet.jit.si/${roomName}`;
+        api.startMeeting(channelId, jitsiUrl, user.session_id);
+        window.open(jitsiUrl, '_blank');
+    };
+
+    const handleStartAudioCall = () => {
+        const roomName = `audio-${channelId}-${Date.now()}`;
+        const jitsiUrl = `https://meet.jit.si/${roomName}#config.startWithVideoMuted=true`;
+        api.startMeeting(channelId, jitsiUrl, user.session_id);
+        window.open(jitsiUrl, '_blank');
     };
 
     const handleFileSelect = async (e) => {
@@ -320,10 +361,20 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
             </div>
 
             <div className={`main-chat-container ${isSidebarOpen ? 'hidden-mobile' : ''}`}>
-                <div className="chat-header-minimal">
-                    <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
-                    <h2>{channels.find(c => c.id === channelId)?.name || 'Loading...'}</h2>
+                <div className="chat-header">
+                    <div className="header-left">
+                        {!isSidebarOpen && (
+                            <button onClick={() => setIsSidebarOpen(true)} className="menu-toggle-btn">☰</button>
+                        )}
+                        <h2>{channels.find(c => c.id === channelId)?.name || 'Loading...'}</h2>
+                    </div>
                     <div className="header-actions">
+                        <button onClick={handleStartAudioCall} className="call-btn audio-call" title="Start Audio Call">
+                            📞
+                        </button>
+                        <button onClick={handleStartVideoCall} className="call-btn video-call" title="Start Video Call">
+                            🎥
+                        </button>
                         <button onClick={startMeeting} className="mini-action">🎥 Meeting</button>
                         <button onClick={watchTogether} className="mini-action">🍿 Watch</button>
                     </div>
@@ -358,10 +409,29 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
                 {unreadCount > 0 && <div className="unread-badge" onClick={() => { setIsAtBottom(true); messagesEndRef.current?.scrollIntoView(); }}>{unreadCount} New ↓</div>}
 
                 <form className="chat-input-area" onSubmit={handleSend}>
-                    <label className="icon-button">📷<input type="file" onChange={handleFileSelect} hidden /></label>
-                    <button type="button" onMouseDown={startRecording} onMouseUp={stopRecording} className={`icon-button ${isRecording ? 'recording' : ''}`}>🎤</button>
-                    <input type="text" placeholder="Message..." value={inputVal} onChange={handleInputChange} />
-                    <button type="submit">Send</button>
+                    <label className="icon-button" title="Send Image">
+                        📷
+                        <input type="file" accept="image/*" onChange={handleFileSelect} hidden />
+                    </label>
+                    <button
+                        type="button"
+                        onMouseDown={startRecording}
+                        onMouseUp={stopRecording}
+                        onTouchStart={startRecording}
+                        onTouchEnd={stopRecording}
+                        className={`icon-button voice-btn ${isRecording ? 'recording' : ''}`}
+                        title={isRecording ? "Release to send" : "Hold to record voice message"}
+                    >
+                        {isRecording ? '🔴' : '🎤'}
+                    </button>
+                    <input
+                        type="text"
+                        placeholder={isRecording ? "Recording..." : "Type a message..."}
+                        value={inputVal}
+                        onChange={handleInputChange}
+                        disabled={isRecording}
+                    />
+                    <button type="submit" disabled={isRecording || !inputVal.trim()}>Send</button>
                 </form>
             </div>
         </div>

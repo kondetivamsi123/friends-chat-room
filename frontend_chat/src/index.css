@@ -431,3 +431,153 @@ input {
 .summary-card p {
   margin: 0;
 }
+
+/* Call Buttons & Header Improvements */
+.chat-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--card-bg);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-left h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.menu-toggle-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.menu-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.call-btn {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 20px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(187, 134, 252, 0.3);
+}
+
+.call-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(187, 134, 252, 0.5);
+}
+
+.call-btn:active {
+  transform: translateY(0);
+}
+
+.call-btn.audio-call {
+  background: linear-gradient(135deg, #03dac6, #018786);
+}
+
+.call-btn.video-call {
+  background: linear-gradient(135deg, #bb86fc, #3700b3);
+}
+
+/* Voice Recording Button Enhancements */
+.voice-btn {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.voice-btn.recording {
+  background: #ff4444 !important;
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+  }
+
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255, 68, 68, 0.8);
+  }
+}
+
+.icon-button {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.2rem;
+  transition: all 0.2s;
+}
+
+.icon-button:hover {
+  background: rgba(187, 134, 252, 0.1);
+  border-color: var(--primary);
+}
+
+.icon-button:active {
+  transform: scale(0.95);
+}
+
+.chat-input-area input[type="text"]:disabled {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #ff4444;
+  cursor: not-allowed;
+}
+
+.chat-input-area button[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive Improvements */
+@media (max-width: 768px) {
+  .header-actions {
+    gap: 0.3rem;
+  }
+
+  .call-btn {
+    padding: 0.5rem 0.8rem;
+    font-size: 1rem;
+  }
+
+  .mini-action {
+    display: none;
+  }
+
+  .chat-header {
+    padding: 0.8rem 1rem;
+  }
+
+  .header-left h2 {
+    font-size: 1rem;
+  }
+}
