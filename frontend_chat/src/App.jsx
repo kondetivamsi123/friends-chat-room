@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Login from './components/Login';
 import MFAVerify from './components/MFAVerify';
 import ChatRoom from './components/ChatRoom';
+import CapTable from './components/CapTable';
 import './index.css';
 
 function App() {
@@ -45,7 +46,23 @@ function App() {
       )}
 
       {step === 'chat' && user && (
-        <ChatRoom user={user} onLogout={handleLogout} />
+        <ChatRoom
+          user={user}
+          onLogout={handleLogout}
+          onOpenDao={() => setStep('dao')}
+        />
+      )}
+
+      {step === 'dao' && user && (
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setStep('chat')}
+            style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 1000, background: '#333' }}
+          >
+            ← Back to Chat
+          </button>
+          <CapTable user={user} />
+        </div>
       )}
     </div>
   );

@@ -314,6 +314,7 @@ const ChatRoom = ({ user, onLogout }) => {
                     <div className="presence-min">
                         {onlineUsers.map(u => <div key={u} className="online-user"><span className="status-dot"></span>{u}</div>)}
                     </div>
+                    <button onClick={onOpenDao} className="dao-side-btn">🏛️ DAO Equity</button>
                     <button onClick={onLogout} className="logout-side-btn">Logout</button>
                 </div>
             </div>

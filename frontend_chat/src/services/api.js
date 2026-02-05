@@ -55,4 +55,9 @@ export const api = {
     createGroup: (name, members, sessionId) => callApi('/api/chat/create', { name, members, session_id: sessionId }),
     deleteGroup: (channelId, sessionId) => callApi('/api/chat/delete', { channel_id: channelId, session_id: sessionId }),
     deleteMessage: (channelId, messageId, sessionId) => callApi('/api/chat/message/delete', { channel_id: channelId, message_id: messageId, session_id: sessionId }),
+
+    // DAO Module
+    getCapTable: (sessionId) => callApi('/api/dao/captable', { session_id: sessionId }),
+    awardPoints: (userName, amount, reason, sessionId) => callApi('/api/dao/award', { user_name: userName, amount, reason, session_id: sessionId }),
+    getDaoSummary: (sessionId) => callApi('/api/dao/summary', { session_id: sessionId }),
 };

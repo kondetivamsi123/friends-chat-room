@@ -418,6 +418,59 @@ def chat_post():
         }
     })
 
+# =======================
+# DAO & GEMINI ROUTES
+# =======================
+
+from dao_module import DAOController
+from gemini_agent import GeminiAgent
+
+dao_ctrl = DAOController()
+gemini_agent = GeminiAgent()
+
+@app.route('/api/dao/captable', methods=['POST'])
+def dao_captable():
+    data = request.json
+    session_id = data.get('session_id')
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    cap_table = dao_ctrl.get_cap_table()
+    return jsonify({'result': {'cap_table': cap_table}})
+
+@app.route('/api/dao/award', methods=['POST'])
+def dao_award():
+    data = request.json
+    session_id = data.get('session_id')
+    user_name = data.get('user_name')
+    amount = data.get('amount')
+    reason = data.get('reason')
+    
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    # Check Admin (Basic check: only Vamsi is admin for now)
+    current_user = sessions[session_id]['username']
+    if current_user != "vkrishna368.mail.com@gmail.com":
+        return jsonify({'error': 'Only Admin can award points'}), 403
+        
+    result = dao_ctrl.award_points(current_user, user_name, amount, reason)
+    return jsonify({'result': result})
+
+@app.route('/api/dao/summary', methods=['POST'])
+def dao_summary():
+    # Only Admin or authenticated users
+    data = request.json
+    session_id = data.get('session_id')
+    if not session_id or session_id not in sessions:
+        return jsonify({'error': 'Unauthorized'}), 401
+        
+    ledger = dao_ctrl.get_ledger()
+    summary = gemini_agent.summarize_week(ledger)
+    
+    return jsonify({'result': {'summary': summary}})
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 8069))
