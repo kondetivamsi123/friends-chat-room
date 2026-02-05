@@ -2,10 +2,15 @@ import axios from 'axios';
 
 // Simplified API service for Python Backend
 const getBaseURL = () => {
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        return 'http://localhost:8069';
+    if (typeof window !== 'undefined') {
+        const { hostname, protocol, port } = window.location;
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:8069';
+        }
+        // In production, the backend is on the same host as the frontend (monolith)
+        return `${protocol}//${hostname}`;
     }
-    return 'https://friends-chat-room.onrender.com';
+    return '';
 };
 
 const client = axios.create({

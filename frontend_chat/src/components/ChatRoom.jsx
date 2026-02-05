@@ -300,7 +300,8 @@ const ChatRoom = ({ user, onLogout }) => {
         }
 
         // Regular text message
-        const text = msg.body.replace(/<[^>]+>/g, '');
+        const body = msg.body || '';
+        const text = String(body).replace(/<[^>]+>/g, '');
         return (
             <div key={msg.id} id={msgId} className={`message ${isMine ? 'mine' : 'others'}`}>
                 <span className="message-author">{msg.author}</span>
@@ -309,10 +310,21 @@ const ChatRoom = ({ user, onLogout }) => {
         );
     };
 
-    const startMeeting = () => {
-        const meetingUrl = `https://meet.jit.si/FriendsChatRoom_${channelId}`;
-        window.open(meetingUrl, '_blank');
-        api.postMessage(channelId, `🎥 Started a video meeting: ${meetingUrl}`, user.session_id);
+    const startMeeting = async () => {
+        const meetingUrl = `https://meet.jit.si/FriendsExperience_${channelId}_${Date.now()}`;
+        try {
+            await api.startMeeting(channelId, meetingUrl, user.session_id);
+            window.open(meetingUrl, '_blank');
+            api.postMessage(channelId, `🎥 I started a video meeting! Join here: ${meetingUrl}`, user.session_id);
+        } catch (err) {
+            setError('Failed to start meeting: ' + err);
+        }
+    };
+
+    const joinActiveMeeting = () => {
+        if (activeMeeting) {
+            window.open(activeMeeting.meeting_url, '_blank');
+        }
     };
 
     const watchTogether = () => {
