@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
+import VideoCall from './VideoCall';
 
 const ChatRoom = ({ user, onLogout, onOpenDao }) => {
     const [messages, setMessages] = useState([]);
@@ -14,6 +15,8 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [isAtBottom, setIsAtBottom] = useState(true);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [showVideoCall, setShowVideoCall] = useState(false);
+    const [callType, setCallType] = useState('video'); // 'video' or 'audio'
 
     const messagesEndRef = useRef(null);
     const messagesAreaRef = useRef(null);
@@ -266,17 +269,19 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
     };
 
     const handleStartVideoCall = () => {
-        const roomName = `room-${channelId}-${Date.now()}`;
-        const jitsiUrl = `https://meet.jit.si/${roomName}`;
-        api.startMeeting(channelId, jitsiUrl, user.session_id);
-        window.open(jitsiUrl, '_blank');
+        setCallType('video');
+        setShowVideoCall(true);
+        // Notify other users in the channel
+        const meetingUrl = `in-app-call-${channelId}-${Date.now()}`;
+        api.startMeeting(channelId, meetingUrl, user.session_id);
     };
 
     const handleStartAudioCall = () => {
-        const roomName = `audio-${channelId}-${Date.now()}`;
-        const jitsiUrl = `https://meet.jit.si/${roomName}#config.startWithVideoMuted=true`;
-        api.startMeeting(channelId, jitsiUrl, user.session_id);
-        window.open(jitsiUrl, '_blank');
+        setCallType('audio');
+        setShowVideoCall(true);
+        // Notify other users in the channel
+        const meetingUrl = `in-app-audio-${channelId}-${Date.now()}`;
+        api.startMeeting(channelId, meetingUrl, user.session_id);
     };
 
     const handleFileSelect = async (e) => {
@@ -434,6 +439,16 @@ const ChatRoom = ({ user, onLogout, onOpenDao }) => {
                     <button type="submit" disabled={isRecording || !inputVal.trim()}>Send</button>
                 </form>
             </div>
+
+            {/* Video Call Overlay */}
+            {showVideoCall && (
+                <VideoCall
+                    channelId={channelId}
+                    user={user}
+                    isAudioOnly={callType === 'audio'}
+                    onClose={() => setShowVideoCall(false)}
+                />
+            )}
         </div>
     );
 };
