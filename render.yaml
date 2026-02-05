@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: friends-chat-backend
+    env: docker
+    plan: free
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: PORT
+        value: 8069

@@ -239,14 +239,120 @@ input {
   font-style: italic;
 }
 
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  margin-right: 1rem;
+  padding: 0;
+}
+
 @media (max-width: 768px) {
-  .sidebar-groups {
-    width: 60px;
+  .monolith-layout {
+    height: 90vh;
+    /* Better mobile height */
+    position: relative;
+    border: none;
+    border-radius: 0;
   }
 
+  .sidebar-groups {
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 100;
+    display: none;
+    /* Hidden by default on mobile (showing chat) */
+    background: var(--card-bg);
+  }
+
+  .sidebar-groups.open {
+    display: flex;
+  }
+
+  /* Ensure text is visible on mobile sidebar */
   .sidebar-groups span,
   .sidebar-groups h3,
   .sidebar-groups h4 {
+    display: inline-block;
+  }
+
+  .main-chat-container.hidden-mobile {
     display: none;
+  }
+
+  .chat-header-minimal {
+    padding: 0.8rem;
+  }
+
+  .mobile-menu-btn {
+    display: block;
+  }
+
+  .message {
+    max-width: 85%;
+    /* Allows more width on mobile */
+  }
+}
+
+.unread-divider {
+  display: flex;
+  align-items: center;
+  color: var(--primary);
+  margin: 1rem 0;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.unread-divider::before,
+.unread-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--primary);
+  opacity: 0.5;
+}
+
+.unread-divider span {
+  padding: 0 10px;
+  background: #2c2c2c;
+  border-radius: 10px;
+}
+
+.active-meeting-banner {
+  background: linear-gradient(90deg, #3700b3, #bb86fc);
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+.join-meeting-btn {
+  background: white;
+  color: #3700b3;
+  border: none;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

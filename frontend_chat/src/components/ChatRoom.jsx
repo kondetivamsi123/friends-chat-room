@@ -13,6 +13,7 @@ const ChatRoom = ({ user, onLogout }) => {
     const [isRecording, setIsRecording] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isAtBottom, setIsAtBottom] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const messagesEndRef = useRef(null);
     const messagesAreaRef = useRef(null);
@@ -53,7 +54,13 @@ const ChatRoom = ({ user, onLogout }) => {
     };
 
     const handleScroll = () => {
-        setIsAtBottom(checkIfAtBottom());
+        const atBottom = checkIfAtBottom();
+        setIsAtBottom(atBottom);
+        if (atBottom && messages.length > 0) {
+            const lastMsg = messages[messages.length - 1];
+            localStorage.setItem(`lastReadMessageId_${channelId}`, lastMsg.id);
+            setUnreadCount(0);
+        }
     };
 
     // Poll for messages and typing status
@@ -68,9 +75,29 @@ const ChatRoom = ({ user, onLogout }) => {
 
                     if (messages.length === 0 && sortedMessages.length > 0) {
                         setMessages(sortedMessages);
+
+                        // Handle initial scroll
                         setTimeout(() => {
-                            messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                            const lastReadId = parseInt(localStorage.getItem(`lastReadMessageId_${channelId}`));
+                            if (lastReadId) {
+                                const targetMsg = document.getElementById(`msg-${lastReadId}`);
+                                if (targetMsg) {
+                                    targetMsg.scrollIntoView({ behavior: 'auto', block: 'center' });
+                                    // If we are looking at old messages, we are not at bottom
+                                    setIsAtBottom(false);
+                                } else {
+                                    // Message not found (maybe too old), scroll to bottom
+                                    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                                    // Update last read to current latest
+                                    localStorage.setItem(`lastReadMessageId_${channelId}`, sortedMessages[sortedMessages.length - 1].id);
+                                }
+                            } else {
+                                // No history, scroll to bottom
+                                messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+                                localStorage.setItem(`lastReadMessageId_${channelId}`, sortedMessages[sortedMessages.length - 1].id);
+                            }
                         }, 100);
+
                         lastMessageIdRef.current = sortedMessages[sortedMessages.length - 1].id;
                         return;
                     }
@@ -252,7 +279,7 @@ const ChatRoom = ({ user, onLogout }) => {
         }
 
         return (
-            <div key={msg.id} className={`message-wrapper ${isMine ? 'mine' : 'others'}`}>
+            <div key={msg.id} id={`msg-${msg.id}`} className={`message-wrapper ${isMine ? 'mine' : 'others'}`}>
                 <div className="message">
                     <span className="message-author">{msg.author}</span>
                     <div className="message-content">
@@ -266,14 +293,17 @@ const ChatRoom = ({ user, onLogout }) => {
 
     return (
         <div className="monolith-layout">
-            <div className="sidebar-groups">
+            <div className={`sidebar-groups ${isSidebarOpen ? 'open' : ''}`}>
                 <div className="sidebar-header">
                     <h3>Groups</h3>
-                    <button onClick={handleCreateGroup} className="add-group-btn">+</button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={handleCreateGroup} className="add-group-btn">+</button>
+                        {isSidebarOpen && <button onClick={() => setIsSidebarOpen(false)} className="add-group-btn" style={{ background: '#333' }}>×</button>}
+                    </div>
                 </div>
                 <div className="groups-list">
                     {channels.map(c => (
-                        <div key={c.id} className={`group-item ${channelId === c.id ? 'active' : ''}`} onClick={() => setChannelId(c.id)}>
+                        <div key={c.id} className={`group-item ${channelId === c.id ? 'active' : ''}`} onClick={() => { setChannelId(c.id); setIsSidebarOpen(false); }}>
                             <span>{c.name}</span>
                             {c.is_admin && c.id !== 1 && <button onClick={(e) => { e.stopPropagation(); handleDeleteGroup(c.id); }} className="del-grp-small">×</button>}
                         </div>
@@ -288,8 +318,9 @@ const ChatRoom = ({ user, onLogout }) => {
                 </div>
             </div>
 
-            <div className="main-chat-container">
+            <div className={`main-chat-container ${isSidebarOpen ? 'hidden-mobile' : ''}`}>
                 <div className="chat-header-minimal">
+                    <button className="mobile-menu-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
                     <h2>{channels.find(c => c.id === channelId)?.name || 'Loading...'}</h2>
                     <div className="header-actions">
                         <button onClick={startMeeting} className="mini-action">🎥 Meeting</button>
@@ -298,7 +329,27 @@ const ChatRoom = ({ user, onLogout }) => {
                 </div>
 
                 <div className="messages-area" ref={messagesAreaRef} onScroll={handleScroll}>
-                    {messages.map(renderMessage)}
+                    {activeMeeting && activeMeeting.meeting_url && (
+                        <div className="active-meeting-banner">
+                            <span>🎥 <b>{activeMeeting.started_by}</b> started a meeting</span>
+                            <button onClick={() => window.open(activeMeeting.meeting_url, '_blank')} className="join-meeting-btn">Join Now</button>
+                        </div>
+                    )}
+                    {messages.map((msg, index) => {
+                        const isLastRead = msg.id === parseInt(localStorage.getItem(`lastReadMessageId_${channelId}`));
+                        const showDivider = isLastRead && index < messages.length - 1;
+
+                        return (
+                            <React.Fragment key={msg.id}>
+                                {renderMessage(msg)}
+                                {showDivider && (
+                                    <div className="unread-divider">
+                                        <span>Unread Messages</span>
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
                     {typingUsers.length > 0 && <div className="typing-indicator">{typingUsers.join(', ')} typing...</div>}
                     <div ref={messagesEndRef} />
                 </div>
